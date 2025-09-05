@@ -7,23 +7,20 @@ const cors = require('cors');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const HOST = '0.0.0.0'; // Critical fix for hosting platforms like Render
+// HOST is needed for many hosting platforms to work correctly
+const HOST = '0.0.0.0'; 
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+// Serve static files (like index.html) from the 'public' folder
+app.use(express.static(path.join(__dirname, 'public'))); 
 
 const tempDir = path.join(__dirname, 'temp');
 if (!fs.existsSync(tempDir)) {
     fs.mkdirSync(tempDir, { recursive: true });
 }
 
-// Health Check Route for Render to ensure the server is alive
-app.get('/healthz', (req, res) => {
-    res.status(200).send('OK');
-});
-
-// Main Homepage Route to serve the index.html file
+// Explicitly serve the index.html file for the root URL
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
