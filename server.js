@@ -7,28 +7,25 @@ const cors = require('cors');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const HOST = '0.0.0.0'; // Critical fix for hosting platforms
+// This HOST setting is critical for Render's health checks
+const HOST = '0.0.0.0'; 
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+// This tells Express where to find your index.html file
+app.use(express.static(path.join(__dirname, 'public'))); 
 
 const tempDir = path.join(__dirname, 'temp');
 if (!fs.existsSync(tempDir)) {
     fs.mkdirSync(tempDir, { recursive: true });
 }
 
-// Health Check Route for Render/Vercel to ensure the server is alive
-app.get('/healthz', (req, res) => {
-    res.status(200).send('OK');
-});
-
-// Main Homepage Route to serve the index.html file
+// This route explicitly serves the homepage and fixes the "Cannot GET /" error
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Code Execution Endpoint
+// Code Execution Endpoint - no changes needed here
 app.post('/execute', (req, res) => {
     const { language, code, stdin } = req.body;
 
@@ -110,7 +107,7 @@ function cleanup(files) {
     });
 }
 
-// Start the server on the correct host and port for deployment
+// This tells the server to listen on the correct host and port for Render
 app.listen(PORT, HOST, () => {
     console.log(`Server is running on http://${HOST}:${PORT}`);
 });
