@@ -1,0 +1,204 @@
+<!-- --- This is your Front-End File --- -->
+<!-- This file contains the HTML structure, styling (Tailwind CSS), and client-side JavaScript. -->
+<!-- This is what the user sees and interacts with in their browser. -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Executor</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Monaco Editor (the code editor from VS Code) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.1/min/vs/editor/editor.main.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.1/min/vs/loader.min.js"></script>
+    <style>
+        /* Custom styles for a modern look */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .editor-container {
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        .output-box {
+            min-height: 150px;
+            background-color: #1e293b; /* A dark background for output */
+            color: #e2e8f0;
+            font-family: 'Courier New', Courier, monospace;
+            white-space: pre-wrap; /* Preserve whitespace and wrap text */
+            word-wrap: break-word;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-4 lg:p-8">
+
+    <!-- This is the main container for the whole page -->
+    <div class="max-w-7xl mx-auto">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-blue-600 dark:text-blue-400">Online Code Execution Engine</h1>
+            <p class="text-lg text-gray-600 dark:text-gray-400 mt-2">A platform to compile and run code snippets on a remote server.</p>
+        </header>
+
+        <main class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Left Column: Code Editor and Controls -->
+            <div class="flex flex-col gap-6">
+                <!-- Language Selector Dropdown -->
+                <div>
+                    <label for="language" class="block text-lg font-medium mb-2">Language:</label>
+                    <select id="language" class="w-full p-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <option value="python">Python</option>
+                        <option value="javascript">JavaScript</option>
+                        <option value="c">C</option>
+                        <option value="cpp">C++</option>
+                    </select>
+                </div>
+
+                <!-- The Code Editor itself -->
+                <div>
+                    <label class="block text-lg font-medium mb-2">Your Code:</label>
+                    <div id="editor" class="w-full h-96 editor-container border border-gray-300 dark:border-gray-600"></div>
+                </div>
+
+                <!-- The "Run Code" Button -->
+                <button id="run-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    <span>Run Code</span>
+                </button>
+            </div>
+
+            <!-- Right Column: Input and Output text areas -->
+            <div class="flex flex-col gap-6">
+                <!-- Standard Input -->
+                <div>
+                    <label for="stdin" class="block text-lg font-medium mb-2">Standard Input (stdin):</label>
+                    <textarea id="stdin" rows="5" class="w-full p-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="Enter any input for your code here..."></textarea>
+                </div>
+
+                <!-- Output Display -->
+                <div>
+                    <label for="output" class="block text-lg font-medium mb-2">Output:</label>
+                    <div class="relative">
+                        <pre id="output" class="w-full p-4 border border-gray-300 dark:border-gray-600 rounded-lg output-box"></pre>
+                        <div id="loader-container" class="absolute inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center rounded-lg hidden">
+                            <div class="loader"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- This is the Client-Side JavaScript Section -->
+    <!-- This code runs in the user's browser. -->
+    <script>
+        let editor;
+
+        // --- Initialize Monaco Editor ---
+        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.1/min/vs' }});
+        require(['vs/editor/editor.main'], function() {
+            editor = monaco.editor.create(document.getElementById('editor'), {
+                value: 'print("Hello, World!")', // Default code
+                language: 'python',
+                theme: window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'vs-dark' : 'vs',
+                automaticLayout: true,
+                fontSize: 16,
+            });
+
+            // --- Logic to update editor with template code when language changes ---
+            document.getElementById('language').addEventListener('change', (e) => {
+                const lang = e.target.value;
+                let language_monaco = lang;
+                let template = '';
+                if (lang === 'python') {
+                    template = 'print("Hello from Python!")';
+                } else if (lang === 'javascript') {
+                    language_monaco = 'javascript';
+                    template = 'console.log("Hello from JavaScript!");';
+                } else if (lang === 'c') {
+                    language_monaco = 'c';
+                    template = '#include <stdio.h>\n\nint main() {\n    printf("Hello from C!");\n    return 0;\n}';
+                } else if (lang === 'cpp') {
+                    language_monaco = 'cpp';
+                    template = '#include <iostream>\n\nint main() {\n    std::cout << "Hello from C++!";\n    return 0;\n}';
+                }
+                monaco.editor.setModelLanguage(editor.getModel(), language_monaco);
+                editor.setValue(template);
+            });
+        });
+
+        // Get references to the HTML elements we need to work with.
+        const runBtn = document.getElementById('run-btn');
+        const outputEl = document.getElementById('output');
+        const loader = document.getElementById('loader-container');
+
+        // --- This is the main logic that runs when you click the "Run Code" button ---
+        runBtn.addEventListener('click', async () => {
+            const code = editor.getValue();
+            const language = document.getElementById('language').value;
+            const stdin = document.getElementById('stdin').value;
+
+            // Show a loading spinner while the code is running.
+            outputEl.textContent = '';
+            loader.classList.remove('hidden');
+            runBtn.disabled = true;
+            runBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+            try {
+                // --- This is the API Call ---
+                // It sends the code, language, and input to your backend server.
+                const response = await fetch('http://localhost:3000/execute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code, language, stdin })
+                });
+
+                const result = await response.json();
+
+                // Handle errors returned from the server.
+                if (!response.ok) {
+                    let message = result.error || 'An unknown server error occurred.';
+                    if (result.stderr) {
+                        message += `\n\n--- Details (stderr) ---\n${result.stderr}`;
+                    }
+                    throw new Error(message);
+                }
+                
+                // --- Display the result ---
+                // If the code ran successfully, show the output.
+                let outputText = result.output || '';
+                if (result.stderr) {
+                    outputText += `\n\n--- Log (stderr) ---\n${result.stderr}`;
+                }
+                outputEl.style.color = result.stderr ? '#f59e0b' : '#e2e8f0';
+                outputEl.textContent = outputText;
+
+            } catch (error) {
+                // If anything went wrong (network error, server crash), show an error message.
+                console.error("An error occurred:", error);
+                outputEl.style.color = '#ef4444'; 
+                outputEl.textContent = error.message;
+            } finally {
+                // Hide the loader and re-enable the button.
+                loader.classList.add('hidden');
+                runBtn.disabled = false;
+                runBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        });
+    </script>
+</body>
+</html>
+
