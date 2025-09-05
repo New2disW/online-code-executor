@@ -6,18 +6,25 @@ const { v4: uuidv4 } = require('uuid');
 const cors = require('cors');
 
 const app = express();
-// This is the crucial change for deployment
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public'))); // Serve static files from 'public' folder
 
 const tempDir = path.join(__dirname, 'temp');
 if (!fs.existsSync(tempDir)) {
     fs.mkdirSync(tempDir, { recursive: true });
 }
 
+// --- THIS IS THE NEW FIX ---
+// This explicitly tells the server to send the index.html file
+// when someone visits the main homepage.
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// The rest of your code remains the same
 app.post('/execute', (req, res) => {
     const { language, code, stdin } = req.body;
 
@@ -103,4 +110,5 @@ app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
 
+    
 
