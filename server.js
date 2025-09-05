@@ -7,20 +7,23 @@ const cors = require('cors');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-// HOST is needed for many hosting platforms to work correctly
-const HOST = '0.0.0.0'; 
+const HOST = '0.0.0.0'; // Critical fix for hosting platforms
 
 app.use(cors());
 app.use(express.json());
-// Serve static files (like index.html) from the 'public' folder
-app.use(express.static(path.join(__dirname, 'public'))); 
+app.use(express.static(path.join(__dirname, 'public')));
 
 const tempDir = path.join(__dirname, 'temp');
 if (!fs.existsSync(tempDir)) {
     fs.mkdirSync(tempDir, { recursive: true });
 }
 
-// Explicitly serve the index.html file for the root URL
+// Health Check Route for Render/Vercel to ensure the server is alive
+app.get('/healthz', (req, res) => {
+    res.status(200).send('OK');
+});
+
+// Main Homepage Route to serve the index.html file
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -107,7 +110,7 @@ function cleanup(files) {
     });
 }
 
-// Start the server on the correct host and port
+// Start the server on the correct host and port for deployment
 app.listen(PORT, HOST, () => {
     console.log(`Server is running on http://${HOST}:${PORT}`);
 });
