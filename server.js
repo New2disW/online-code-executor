@@ -7,28 +7,26 @@ const cors = require('cors');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const HOST = '0.0.0.0'; 
-
-// --- THIS IS THE CRUCIAL FIX ---
-// This tells Express to find your index.html file inside the `src` folder.
-const publicPath = path.join(__dirname, 'src', 'public');
-app.use(express.static(publicPath)); 
+const HOST = '0.0.0.0'; // Critical for Render's health checks
 
 app.use(cors());
 app.use(express.json());
 
-// The temp directory should be at the root of the project, not in src
+// This is the correct path for the new folder structure
+const publicPath = path.join(__dirname, 'public');
+app.use(express.static(publicPath)); 
+
 const tempDir = path.join(__dirname, 'temp');
 if (!fs.existsSync(tempDir)) {
     fs.mkdirSync(tempDir, { recursive: true });
 }
 
-// This route explicitly serves the homepage from the correct path
+// This route serves the homepage from the correct path
 app.get('/', (req, res) => {
     res.sendFile(path.join(publicPath, 'index.html'));
 });
 
-// Code Execution Endpoint - no changes needed here
+// Code Execution Endpoint (no changes needed)
 app.post('/execute', (req, res) => {
     const { language, code, stdin } = req.body;
 
@@ -113,4 +111,6 @@ function cleanup(files) {
 app.listen(PORT, HOST, () => {
     console.log(`Server is running on http://${HOST}:${PORT}`);
 });
+
+        
 
