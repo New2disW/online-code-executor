@@ -4,7 +4,6 @@ A full-stack web application that securely compiles and executes user-submitted 
 
 **[[Link to Live Demo](https://online-code-executor.onrender.com)]** 
 
-![Screenshot of the application] <-- *Take a nice screenshot and upload it to your repo, then link it here.*
 
 ## Features
 
