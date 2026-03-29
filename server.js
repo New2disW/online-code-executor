@@ -1,9 +1,11 @@
+require('dotenv').config();
 const express = require('express');
 const { spawn, execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const cors = require('cors');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -107,6 +109,62 @@ function cleanup(files) {
         }
     });
 }
+
+// ─── AI Debug Endpoint ────────────────────────────────────────────────────────
+app.post('/api/v1/debug', async (req, res) => {
+    const { code, language, error_message } = req.body;
+
+    if (!code || !language || !error_message) {
+        return res.status(400).json({
+            error: 'Missing required fields: code, language, and error_message are all required.'
+        });
+    }
+
+    if (!process.env.GEMINI_API_KEY) {
+        return res.status(500).json({ error: 'Server misconfiguration: GEMINI_API_KEY is not set.' });
+    }
+
+    try {
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+        const model = genAI.getGenerativeModel({
+            model: 'gemini-1.5-flash',
+            systemInstruction: `Act as a Senior AI Engineer. Analyze the provided code and error.
+ Provide a concise explanation of the bug and a corrected, optimized version of the code.
+ You MUST respond ONLY with a valid JSON object — no markdown fences, no extra text — matching this exact schema:
+ {"explanation": "<string>", "fixed_code": "<string>"}`
+        });
+
+        const prompt = `Language: ${language}
+
+Code:
+${code}
+
+Error:
+${error_message}`;
+
+        const result = await model.generateContent(prompt);
+        const rawText = result.response.text().trim();
+
+        // Strip accidental markdown fences if the model adds them
+        const jsonText = rawText.replace(/^```(?:json)?\n?|\n?```$/g, '').trim();
+        const parsed = JSON.parse(jsonText);
+
+        if (typeof parsed.explanation !== 'string' || typeof parsed.fixed_code !== 'string') {
+            throw new Error('Unexpected response shape from AI model.');
+        }
+
+        return res.status(200).json(parsed);
+
+    } catch (err) {
+        console.error('[/api/v1/debug] Error:', err.message);
+        return res.status(500).json({
+            error: 'AI analysis failed.',
+            details: err.message
+        });
+    }
+});
+// ──────────────────────────────────────────────────────────────────────────────
 
 app.listen(PORT, HOST, () => {
     console.log(`Server is running on http://${HOST}:${PORT}`);
