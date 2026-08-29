@@ -128,7 +128,7 @@ app.post('/api/v1/debug', async (req, res) => {
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
         const model = genAI.getGenerativeModel({
-            model: 'gemini-1.5-flash',
+            model: 'gemini-3.6-flash',
             systemInstruction: `Act as a Senior AI Engineer. Analyze the provided code and error.
  Provide a concise explanation of the bug and a corrected, optimized version of the code.
  You MUST respond ONLY with a valid JSON object matching this exact schema:
