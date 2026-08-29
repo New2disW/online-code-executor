@@ -131,36 +131,36 @@ app.post('/api/v1/debug', async (req, res) => {
             model: 'gemini-1.5-flash',
             systemInstruction: `Act as a Senior AI Engineer. Analyze the provided code and error.
  Provide a concise explanation of the bug and a corrected, optimized version of the code.
- You MUST respond ONLY with a valid JSON object — no markdown fences, no extra text — matching this exact schema:
- {"explanation": "<string>", "fixed_code": "<string>"}`
+ You MUST respond ONLY with a valid JSON object matching this exact schema:
+ {"explanation": "<string>", "fixed_code": "<string>"}`,
+            generationConfig: {
+                responseMimeType: "application/json",
+            }
         });
 
-        const prompt = `Language: ${language}
-
-Code:
-${code}
-
-Error:
-${error_message}`;
+        const prompt = `Language: ${language}\n\nCode:\n${code}\n\nError:\n${error_message}`;
 
         const result = await model.generateContent(prompt);
         const rawText = result.response.text().trim();
 
-        // Strip accidental markdown fences if the model adds them
-        const jsonText = rawText.replace(/^```(?:json)?\n?|\n?```$/g, '').trim();
-        const parsed = JSON.parse(jsonText);
+        // With responseMimeType: "application/json", the model is guaranteed to return valid JSON without markdown fences.
+        const parsed = JSON.parse(rawText);
 
         if (typeof parsed.explanation !== 'string' || typeof parsed.fixed_code !== 'string') {
-            throw new Error('Unexpected response shape from AI model.');
+            throw new Error('Unexpected response shape from AI model. Expected explanation and fixed_code strings.');
         }
 
         return res.status(200).json(parsed);
 
     } catch (err) {
-        console.error('[/api/v1/debug] Error:', err.message);
+        // Log the FULL error for server-side debugging
+        console.error('[/api/v1/debug] Full Error Details:', err);
+        
+        // Expose a more descriptive error message to the frontend
         return res.status(500).json({
-            error: 'AI analysis failed.',
-            details: err.message
+            error: err.message || 'AI analysis failed.',
+            status: err.status,
+            code: err.code
         });
     }
 });
