@@ -53,12 +53,39 @@
                 </div>
 
                 <div>
-                    <label for="output" class="block text-lg font-medium mb-2">Output:</label>
+                    <div class="flex justify-between items-end mb-2">
+                        <label for="output" class="block text-lg font-medium">Output:</label>
+                        <button id="ai-fix-btn" class="hidden bg-purple-600 hover:bg-purple-700 text-white font-bold py-1 px-3 rounded-lg text-sm transition-colors">
+                            🤖 Fix with AI
+                        </button>
+                    </div>
                     <div class="relative">
                         <pre id="output" class="w-full p-4 border border-gray-300 dark:border-gray-600 rounded-lg output-box"></pre>
                         <div id="loader-container" class="absolute inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center rounded-lg hidden">
                             <div class="loader"></div>
                         </div>
+                    </div>
+                </div>
+
+                <!-- AI Debug Section -->
+                <div id="ai-response-container" class="hidden flex-col gap-4 p-4 border border-purple-500 rounded-lg bg-purple-50 dark:bg-purple-900/20">
+                    <h3 class="text-lg font-bold text-purple-700 dark:text-purple-400 flex items-center gap-2">
+                        ✨ AI Analysis
+                    </h3>
+                    
+                    <div>
+                        <h4 class="font-semibold mb-1 text-gray-700 dark:text-gray-300">Explanation:</h4>
+                        <p id="ai-explanation" class="text-sm"></p>
+                    </div>
+                    
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <h4 class="font-semibold text-gray-700 dark:text-gray-300">Corrected Code:</h4>
+                            <button id="use-fixed-code-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded text-xs transition-colors">
+                                Use Fixed Code
+                            </button>
+                        </div>
+                        <pre id="ai-fixed-code" class="w-full p-3 bg-gray-800 text-gray-100 rounded text-sm font-mono overflow-x-auto"></pre>
                     </div>
                 </div>
             </div>
@@ -103,6 +130,16 @@
         const outputEl = document.getElementById('output');
         const loader = document.getElementById('loader-container');
 
+        // AI Elements
+        const aiFixBtn = document.getElementById('ai-fix-btn');
+        const aiResponseContainer = document.getElementById('ai-response-container');
+        const aiExplanation = document.getElementById('ai-explanation');
+        const aiFixedCode = document.getElementById('ai-fixed-code');
+        const useFixedCodeBtn = document.getElementById('use-fixed-code-btn');
+        
+        let latestErrorMessage = '';
+        let currentFixedCode = '';
+
         runBtn.addEventListener('click', async () => {
             const code = editor.getValue();
             const language = document.getElementById('language').value;
@@ -112,6 +149,11 @@
             loader.classList.remove('hidden');
             runBtn.disabled = true;
             runBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            
+            // Reset AI UI
+            aiFixBtn.classList.add('hidden');
+            aiResponseContainer.classList.add('hidden');
+            latestErrorMessage = '';
 
             try {
                 // Using a relative URL for '/execute' works for both local and deployed versions.
@@ -128,12 +170,15 @@
                     if (result.stderr) {
                         message += `\n\n--- Details (stderr) ---\n${result.stderr}`;
                     }
+                    latestErrorMessage = result.stderr || message;
                     throw new Error(message);
                 }
                 
                 let outputText = result.output || '';
                 if (result.stderr) {
                     outputText += `\n\n--- Log (stderr) ---\n${result.stderr}`;
+                    latestErrorMessage = result.stderr;
+                    aiFixBtn.classList.remove('hidden');
                 }
                 outputEl.style.color = result.stderr ? '#f59e0b' : '#e2e8f0';
                 outputEl.textContent = outputText;
@@ -142,10 +187,62 @@
                 console.error("An error occurred:", error);
                 outputEl.style.color = '#ef4444'; 
                 outputEl.textContent = error.message;
+                latestErrorMessage = latestErrorMessage || error.message;
+                aiFixBtn.classList.remove('hidden');
             } finally {
                 loader.classList.add('hidden');
                 runBtn.disabled = false;
                 runBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        });
+
+        // AI Feature Logic
+        aiFixBtn.addEventListener('click', async () => {
+            const code = editor.getValue();
+            const language = document.getElementById('language').value;
+
+            aiFixBtn.disabled = true;
+            aiFixBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            const originalText = aiFixBtn.innerHTML;
+            aiFixBtn.innerHTML = '🤖 Analyzing with Gemini...';
+            
+            aiResponseContainer.classList.add('hidden');
+
+            try {
+                const response = await fetch('/api/v1/debug', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        code, 
+                        language, 
+                        error_message: latestErrorMessage 
+                    })
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.error || 'AI analysis failed.');
+                }
+
+                aiExplanation.textContent = result.explanation;
+                aiFixedCode.textContent = result.fixed_code;
+                currentFixedCode = result.fixed_code;
+                
+                aiResponseContainer.classList.remove('hidden');
+            } catch (error) {
+                console.error("AI Error:", error);
+                alert("Failed to get AI debugging help: " + error.message);
+            } finally {
+                aiFixBtn.disabled = false;
+                aiFixBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                aiFixBtn.innerHTML = originalText;
+            }
+        });
+
+        useFixedCodeBtn.addEventListener('click', () => {
+            if (currentFixedCode) {
+                editor.setValue(currentFixedCode);
             }
         });
     </script>
